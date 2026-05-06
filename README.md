@@ -10,12 +10,15 @@ A real-time Kitchen Display System built using FastAPI, WebSockets, and SQLite, 
 - ✅ Mark items as DONE (partial or full)  
 - 📊 Track Created-till-now (Produced) vs Predicted  
 - 🔄 Real-time sync across multiple screens using WebSockets  
-- ⚠️ Smart status detection:
-  - OK
-  - LIMIT
-  - OVERLOAD  
+- ⚠️ Smart status detection (4 states):
+  - ⚪ IDLE (no activity)
+  - 🟢 OK (under capacity)
+  - 🟡 LIMIT (at capacity)
+  - 🔴 OVERLOAD (exceeds capacity)  
+- 🧠 Advanced logic using total production (pending + completed) vs predicted  
 - 📥 Download production report (CSV)  
 - 🔍 Dish name autocomplete  
+- ✨ Auto-formatting of dish names (e.g., pizza → Pizza)
 
 ---
 
@@ -24,20 +27,36 @@ A real-time Kitchen Display System built using FastAPI, WebSockets, and SQLite, 
 - Open the UI in multiple tabs/screens  
 - When any user clicks DONE, all screens update instantly  
 - Designed for large kitchen displays with real-time feedback  
+- Helps kitchen staff prioritize workload dynamically  
 
 ---
 
 ## 🧠 System Design Highlights
 
 ### 🔹 Real-Time Architecture
-- Implemented using WebSockets
-- Broadcast-based update system
-- Eliminates polling → reduces latency
+- Implemented using WebSockets  
+- Broadcast-based update system  
+- Eliminates polling → reduces latency  
 
 ### 🔹 Scalable Backend
-- Built with FastAPI
-- Uses dependency injection (get_db)
-- Easily extensible to PostgreSQL
+- Built with FastAPI  
+- Uses dependency injection (get_db)  
+- Easily extensible to PostgreSQL  
+
+### 🔹 Smart Status Logic
+
+Status is calculated using:
+
+total = pending + completed
+
+| Condition | Status |
+|----------|--------|
+| total = 0 and predicted = 0 | IDLE |
+| total < predicted | OK |
+| total = predicted | LIMIT |
+| total > predicted | OVERLOAD |
+
+---
 
 ### 🔹 Data Model
 
@@ -143,6 +162,7 @@ Skilled in Python, FastAPI, Automation, and System Design
 
 - Developed as part of a backend system design assignment  
 - Focused on real-time updates and scalability  
+- Includes enhanced logic for better operational decision-making  
 - Easily extensible for production-grade systems  
 
 ---
