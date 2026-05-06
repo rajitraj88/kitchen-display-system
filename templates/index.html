@@ -11,20 +11,17 @@
             text-align: center;
         }
 
-        h2 {
-            margin-top: 20px;
-        }
+        h2 { margin-top: 20px; }
 
         input {
-            padding: 10px;
+            padding: 8px;
             margin: 5px;
             border-radius: 6px;
             border: none;
-            outline: none;
         }
 
         button {
-            padding: 10px 14px;
+            padding: 8px 12px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
@@ -41,18 +38,16 @@
         table {
             margin: auto;
             border-collapse: collapse;
-            width: 70%;
+            width: 85%;
             margin-top: 20px;
         }
 
         th, td {
-            padding: 12px;
+            padding: 14px;
             border: 1px solid #333;
         }
 
-        th {
-            background: #1c1c1c;
-        }
+        th { background: #1c1c1c; }
 
         #stats {
             margin:15px;
@@ -62,6 +57,12 @@
             background:#1b5e20;
             border-radius:5px;
         }
+
+        .row-big { font-size: 18px; font-weight: bold; }
+        .overload { background: #ff1744 !important; }
+        .limit { background: #f9a825 !important; }
+        .ok { background: #1b5e20 !important; }
+        .nodata { background: #424242 !important; }
     </style>
 </head>
 
@@ -71,145 +72,151 @@
 
 <div id="stats">Loading...</div>
 
+<!-- ORDER -->
 <div>
-    <input id="dishName" list="dishList" placeholder="Dish name" />
+    <input id="dishName" list="dishList" placeholder="Dish name">
     <datalist id="dishList"></datalist>
 
-    <input id="dishQty" type="number" placeholder="Qty" />
+    <input id="dishQty" type="number" placeholder="Qty">
     <button onclick="addOrder()">Add Order</button>
 </div>
 
-<div style="margin-top:15px;">
-    <button onclick="downloadReport()">Download Report</button>
+<!-- PREDICTION -->
+<div>
+    <input id="predName" placeholder="Dish">
+    <input id="predValue" type="number" placeholder="Predicted">
+    <button onclick="setPrediction()">Set Prediction</button>
 </div>
 
+<button onclick="downloadReport()">Download Report</button>
+
 <table>
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Pending</th>
-            <th>Produced</th>
-            <th>Predicted</th>
-            <th>Status</th>
-            <th>Action</th>
-        </tr>
-    </thead>
-    <tbody id="table-body"></tbody>
+<thead>
+<tr>
+<th>Name</th>
+<th>Qty</th> <!-- NEW -->
+<th>Pending</th>
+<th>Created-till-now</th> <!-- RENAMED -->
+<th>Predicted</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="table-body"></tbody>
 </table>
 
 <script>
 
-const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+// WebSocket (deploy safe)
+const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+const socket = new WebSocket(`${protocol}//${location.host}/ws`);
 socket.onmessage = () => fetchData();
 
-function playAlert() {
-    new Audio("https://www.soundjay.com/buttons/beep-07.wav").play();
+// Autocomplete
+const dishInput = document.getElementById("dishName");
+const dataList = document.getElementById("dishList");
+
+let debounce;
+dishInput.addEventListener("input", () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(loadSuggestions, 200);
+});
+
+async function loadSuggestions() {
+    let query = dishInput.value;
+    if (!query) return;
+
+    let res = await fetch(`/suggest?q=${query}`);
+    let data = await res.json();
+
+    dataList.innerHTML = "";
+    data.forEach(name => {
+        let opt = document.createElement("option");
+        opt.value = name;
+        dataList.appendChild(opt);
+    });
 }
 
-// 🔥 Safe ID generator
+// Utils
 function safeId(name) {
     return name.replace(/\s+/g, "-").toLowerCase();
 }
 
+// Fetch Data
 async function fetchData() {
     let res = await fetch("/dishes");
     let data = await res.json();
 
-    data.sort((a, b) => b.pending - a.pending);
-
     let table = document.getElementById("table-body");
     table.innerHTML = "";
 
+    // ✅ Empty state
+    if (data.length === 0) {
+        table.innerHTML = `<tr><td colspan="7">No Orders Yet</td></tr>`;
+        return;
+    }
+
+    data.sort((a, b) => (b.pending + b.completed) - (a.pending + a.completed));
+
     let totalPending = 0;
     let totalCompleted = 0;
-    let overloadFound = false;
 
-    data.forEach(dish => {
+    data.forEach(d => {
 
-        let color = "";
-        let status = "";
-        let statusColor = "";
+        let total = d.pending + d.completed;
 
-        let total = dish.pending + dish.completed;
+        let status = "NO DATA";
+        let className = "nodata";
 
-        // ✅ FINAL STATUS LOGIC
-        if (dish.predicted === 0) {
-            color = "#424242";
-            status = "NO DATA";
-            statusColor = "#bdbdbd";
-        }
-        else if (total < dish.predicted) {
-            color = "#1b5e20";
-            status = "OK";
-            statusColor = "#4caf50";
-        }
-        else if (total === dish.predicted) {
-            color = "#f9a825";
-            status = "LIMIT";
-            statusColor = "#ff9800";
-        }
-        else {
-            color = "#b71c1c";
-            status = "OVERLOAD";
-            statusColor = "#f44336";
-            overloadFound = true;
+        if (d.predicted > 0) {
+            if (total < d.predicted) {
+                status = "OK";
+                className = "ok";
+            } else if (total === d.predicted) {
+                status = "LIMIT";
+                className = "limit";
+            } else {
+                status = "OVERLOAD";
+                className = "overload";
+            }
         }
 
-        totalPending += dish.pending;
-        totalCompleted += dish.completed;
+        totalPending += d.pending;
+        totalCompleted += d.completed;
 
-        let id = safeId(dish.name);
+        let id = safeId(d.name);
 
-        let row = `
-        <tr style="background:${color}">
-            <td>${dish.name}</td>
-            <td>${dish.pending}</td>
-            <td>${dish.completed}</td>
-            <td>${dish.predicted}</td>
-            <td style="color:${statusColor}; font-weight:bold">${status}</td>
+        table.innerHTML += `
+        <tr class="${className} row-big">
+            <td>${d.name}</td>
+            <td>${d.pending + d.completed}</td> <!-- Qty -->
+            <td>${d.pending}</td>
+            <td>${d.completed}</td>
+            <td>${d.predicted}</td>
+            <td style="font-size:18px; font-weight:bold;">${status}</td>
             <td>
                 ${
-                    dish.pending > 0
+                    d.pending > 0
                     ? `
-                    <input type="number" min="1" max="${dish.pending}" value="1" id="qty-${id}" style="width:60px;">
-                    <button onclick="markDone('${dish.name}')">DONE</button>
+                        <input type="number" min="1" max="${d.pending}" value="1" id="qty-${id}" style="width:60px;">
+                        <button onclick="markDone('${d.name}')">DONE</button>
                     `
-                    : "All Done"
+                    : `<button disabled>DONE</button>`
                 }
             </td>
-        </tr>
-        `;
-
-        table.innerHTML += row;
+        </tr>`;
     });
 
     document.getElementById("stats").innerHTML =
         `Pending: ${totalPending} | Completed: ${totalCompleted}`;
-
-    if (overloadFound) playAlert();
 }
 
-// 🔥 Capitalize words
-function formatName(name) {
-    return name
-        .trim()
-        .toLowerCase()
-        .split(" ")
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
-}
-
+// Add Order
 async function addOrder() {
-    let name = document.getElementById("dishName").value;
-    let qty = parseInt(document.getElementById("dishQty").value);
+    let name = dishName.value;
+    let qty = parseInt(dishQty.value);
 
-    name = formatName(name);
-
-    if (!name || !qty || qty <= 0) {
-        alert("Valid input required");
-        return;
-    }
+    if (!name || qty <= 0) return alert("Invalid input");
 
     await fetch("/order", {
         method: "POST",
@@ -217,16 +224,20 @@ async function addOrder() {
         body: JSON.stringify({name, quantity: qty})
     });
 
-    document.getElementById("dishName").value = "";
-    document.getElementById("dishQty").value = "";
+    dishName.value = "";
+    dishQty.value = "";
 }
 
+// Done
 async function markDone(name) {
     let id = safeId(name);
-    let qty = parseInt(document.getElementById(`qty-${id}`).value);
+    let input = document.getElementById(`qty-${id}`);
 
-    if (!qty || qty <= 0) {
-        alert("Invalid quantity");
+    let qty = parseInt(input.value);
+    let pending = parseInt(input.max);
+
+    if (qty > pending) {
+        alert(`Only ${pending} items pending`);
         return;
     }
 
@@ -237,30 +248,27 @@ async function markDone(name) {
     });
 }
 
-function downloadReport() {
-    window.open("/report", "_blank");
+// Prediction
+async function setPrediction() {
+    let name = predName.value;
+    let val = parseInt(predValue.value);
+
+    if (!name || val < 0) return alert("Invalid");
+
+    await fetch("/prediction", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({name, predicted: val})
+    });
+
+    predName.value = "";
+    predValue.value = "";
 }
 
-// Autocomplete
-const input = document.getElementById("dishName");
-const datalist = document.getElementById("dishList");
-
-input.addEventListener("input", async () => {
-    let query = input.value;
-
-    if (!query) return;
-
-    let res = await fetch(`/suggest?q=${query}`);
-    let data = await res.json();
-
-    datalist.innerHTML = "";
-
-    data.forEach(name => {
-        let option = document.createElement("option");
-        option.value = name;
-        datalist.appendChild(option);
-    });
-});
+// Report
+function downloadReport() {
+    window.open("/report");
+}
 
 fetchData();
 

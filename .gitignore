@@ -2,27 +2,34 @@
 # Python
 # ---------------------------
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.sqlite3
+*.py[cod]
+*$py.class
 
 # ---------------------------
-# Virtual Environment
+# Virtual Environments
 # ---------------------------
 venv/
 .env/
 .venv/
+env/
 
 # ---------------------------
 # Environment Variables
 # ---------------------------
 .env
+.env.*
 
 # ---------------------------
-# Database
+# Database Files
 # ---------------------------
+*.sqlite3
+*.db
 kitchen.db
+
+# ---------------------------
+# Logs
+# ---------------------------
+*.log
 
 # ---------------------------
 # OS Files
@@ -31,18 +38,40 @@ kitchen.db
 Thumbs.db
 
 # ---------------------------
-# IDE / Editor
+# IDE / Editors
 # ---------------------------
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # ---------------------------
-# Logs
+# Build / Distribution
 # ---------------------------
-*.log
+build/
+dist/
+*.egg-info/
+
+# ---------------------------
+# Cache / Testing
+# ---------------------------
+.pytest_cache/
+.coverage
+htmlcov/
 
 # ---------------------------
 # Temporary Files
 # ---------------------------
 *.tmp
-*.swp
+*.bak
+
+# ---------------------------
+# Uvicorn / Runtime
+# ---------------------------
+*.pid
+
+# ---------------------------
+# Static / Media (optional)
+# ---------------------------
+# static/
+# media/
