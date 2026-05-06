@@ -6,9 +6,3 @@ pydantic==2.6.1
 
 jinja2==3.1.3
 python-multipart==0.0.9
-
-# Production-ready DB (optional but recommended)
-psycopg2-binary==2.9.9
-
-# Optional (for future scaling / Redis PubSub)
-redis==5.0.1
