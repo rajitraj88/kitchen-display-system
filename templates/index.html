@@ -83,7 +83,9 @@
 
 <!-- PREDICTION -->
 <div>
-    <input id="predName" placeholder="Dish">
+    <!-- 🔥 FIX -->
+    <input id="predName" list="dishList" placeholder="Dish">
+
     <input id="predValue" type="number" placeholder="Predicted">
     <button onclick="setPrediction()">Set Prediction</button>
 </div>
@@ -94,9 +96,9 @@
 <thead>
 <tr>
 <th>Name</th>
-<th>Qty</th> <!-- NEW -->
+<th>Qty</th>
 <th>Pending</th>
-<th>Created-till-now</th> <!-- RENAMED -->
+<th>Created-till-now</th>
 <th>Predicted</th>
 <th>Status</th>
 <th>Action</th>
@@ -107,42 +109,48 @@
 
 <script>
 
-// WebSocket (deploy safe)
+// WebSocket
 const protocol = location.protocol === "https:" ? "wss:" : "ws:";
 const socket = new WebSocket(`${protocol}//${location.host}/ws`);
 socket.onmessage = () => fetchData();
 
-// Autocomplete
+// 🔥 AUTOCOMPLETE (BOTH INPUTS)
 const dishInput = document.getElementById("dishName");
+const predInput = document.getElementById("predName");
 const dataList = document.getElementById("dishList");
 
 let debounce;
-dishInput.addEventListener("input", () => {
+
+dishInput.addEventListener("input", handleSuggest);
+predInput.addEventListener("input", handleSuggest);
+
+function handleSuggest(e) {
     clearTimeout(debounce);
-    debounce = setTimeout(loadSuggestions, 200);
-});
 
-async function loadSuggestions() {
-    let query = dishInput.value;
-    if (!query) return;
+    let query = e.target.value.trim();
+    if (!query) {
+        dataList.innerHTML = "";
+        return;
+    }
 
-    let res = await fetch(`/suggest?q=${query}`);
-    let data = await res.json();
+    debounce = setTimeout(async () => {
+        let res = await fetch(`/suggest?q=${query}`);
+        let data = await res.json();
 
-    dataList.innerHTML = "";
-    data.forEach(name => {
-        let opt = document.createElement("option");
-        opt.value = name;
-        dataList.appendChild(opt);
-    });
+        dataList.innerHTML = "";
+        data.forEach(name => {
+            let opt = document.createElement("option");
+            opt.value = name;
+            dataList.appendChild(opt);
+        });
+    }, 200);
 }
 
-// Utils
+// बाकी code same
 function safeId(name) {
     return name.replace(/\s+/g, "-").toLowerCase();
 }
 
-// Fetch Data
 async function fetchData() {
     let res = await fetch("/dishes");
     let data = await res.json();
@@ -150,13 +158,10 @@ async function fetchData() {
     let table = document.getElementById("table-body");
     table.innerHTML = "";
 
-    // ✅ Empty state
     if (data.length === 0) {
         table.innerHTML = `<tr><td colspan="7">No Orders Yet</td></tr>`;
         return;
     }
-
-    data.sort((a, b) => (b.pending + b.completed) - (a.pending + a.completed));
 
     let totalPending = 0;
     let totalCompleted = 0;
@@ -189,18 +194,15 @@ async function fetchData() {
         table.innerHTML += `
         <tr class="${className} row-big">
             <td>${d.name}</td>
-            <td>${d.pending + d.completed}</td> <!-- Qty -->
+            <td>${d.pending + d.completed}</td>
             <td>${d.pending}</td>
             <td>${d.completed}</td>
             <td>${d.predicted}</td>
-            <td style="font-size:18px; font-weight:bold;">${status}</td>
+            <td>${status}</td>
             <td>
                 ${
                     d.pending > 0
-                    ? `
-                        <input type="number" min="1" max="${d.pending}" value="1" id="qty-${id}" style="width:60px;">
-                        <button onclick="markDone('${d.name}')">DONE</button>
-                    `
+                    ? `<button onclick="markDone('${d.name}')">DONE</button>`
                     : `<button disabled>DONE</button>`
                 }
             </td>
@@ -211,7 +213,6 @@ async function fetchData() {
         `Pending: ${totalPending} | Completed: ${totalCompleted}`;
 }
 
-// Add Order
 async function addOrder() {
     let name = dishName.value;
     let qty = parseInt(dishQty.value);
@@ -228,27 +229,14 @@ async function addOrder() {
     dishQty.value = "";
 }
 
-// Done
 async function markDone(name) {
-    let id = safeId(name);
-    let input = document.getElementById(`qty-${id}`);
-
-    let qty = parseInt(input.value);
-    let pending = parseInt(input.max);
-
-    if (qty > pending) {
-        alert(`Only ${pending} items pending`);
-        return;
-    }
-
     await fetch("/done", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({name, quantity: qty})
+        body: JSON.stringify({name, quantity: 1})
     });
 }
 
-// Prediction
 async function setPrediction() {
     let name = predName.value;
     let val = parseInt(predValue.value);
@@ -265,7 +253,6 @@ async function setPrediction() {
     predValue.value = "";
 }
 
-// Report
 function downloadReport() {
     window.open("/report");
 }
