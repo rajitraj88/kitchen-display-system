@@ -1,24 +1,54 @@
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ---------------------------
+# Database URL
+# ---------------------------
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    f"sqlite:///{BASE_DIR}/kitchen.db"
+    "sqlite:///./kitchen.db"
 )
 
-connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+# ---------------------------
+# Engine Configuration
+# ---------------------------
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args
+is_sqlite = DATABASE_URL.startswith("sqlite")
+
+if is_sqlite:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        future=True
+    )
+
+# ---------------------------
+# Session Factory
+# ---------------------------
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
 )
 
-SessionLocal = sessionmaker(bind=engine)
+# ---------------------------
+# Base Class
+# ---------------------------
+
 Base = declarative_base()
+
+# ---------------------------
+# Dependency
+# ---------------------------
 
 def get_db():
     db = SessionLocal()

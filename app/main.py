@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Depends, Request, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import FastAPI, Depends, Request, WebSocket, WebSocketDisconnect, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
-import asyncio
+from pydantic import BaseModel, Field
 import csv
 import tempfile
 import os
@@ -11,13 +11,36 @@ from .database import engine, Base, get_db
 from .models import Dish
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
 
-# create tables
+# ---------------------------
+# FIXED TEMPLATE PATH (for your structure)
+# ---------------------------
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+# Create tables
 Base.metadata.create_all(bind=engine)
 
+# ---------------------------
+# Pydantic Schemas
+# ---------------------------
 
+class OrderRequest(BaseModel):
+    name: str = Field(..., min_length=1)
+    quantity: int = Field(..., gt=0)
+
+class PredictionRequest(BaseModel):
+    name: str = Field(..., min_length=1)
+    predicted: int = Field(..., ge=0)
+
+class DoneRequest(BaseModel):
+    name: str = Field(..., min_length=1)
+    quantity: int = Field(default=1, gt=0)
+
+# ---------------------------
 # WebSocket Manager
+# ---------------------------
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: list[WebSocket] = []
@@ -31,17 +54,18 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: str):
-        for connection in self.active_connections:
+        for connection in self.active_connections[:]:
             try:
                 await connection.send_text(message)
             except:
-                pass
-
+                self.disconnect(connection)
 
 manager = ConnectionManager()
 
+# ---------------------------
+# UI Route
+# ---------------------------
 
-# UI - Home Page
 @app.get("/", response_class=HTMLResponse)
 def get_ui(request: Request):
     return templates.TemplateResponse(
@@ -50,14 +74,15 @@ def get_ui(request: Request):
         {"request": request}
     )
 
-
+# ---------------------------
 # Order API
-@app.post("/order")
-async def create_order(name: str, quantity: int, db: Session = Depends(get_db)):
-    name = name.strip().lower()
+# ---------------------------
 
-    if not name or quantity <= 0:
-        return {"error": "Invalid input"}
+@app.post("/order")
+async def create_order(req: OrderRequest, db: Session = Depends(get_db)):
+    name = req.name.strip().lower()
+    quantity = req.quantity
+
     dish = db.query(Dish).filter(Dish.name == name).first()
 
     if dish:
@@ -77,8 +102,10 @@ async def create_order(name: str, quantity: int, db: Session = Depends(get_db)):
         "pending": dish.pending
     }
 
-
+# ---------------------------
 # Get Dishes
+# ---------------------------
+
 @app.get("/dishes")
 def get_dishes(db: Session = Depends(get_db)):
     dishes = db.query(Dish).all()
@@ -93,21 +120,21 @@ def get_dishes(db: Session = Depends(get_db)):
         for dish in dishes
     ]
 
-
+# ---------------------------
 # Prediction API
-@app.post("/prediction")
-async def set_prediction(name: str, predicted: int, db: Session = Depends(get_db)):
-    name = name.strip().lower()
+# ---------------------------
 
-    if not name or predicted < 0:
-        return {"error": "Invalid input"}
+@app.post("/prediction")
+async def set_prediction(req: PredictionRequest, db: Session = Depends(get_db)):
+    name = req.name.strip().lower()
+
     dish = db.query(Dish).filter(Dish.name == name).first()
 
     if not dish:
-        dish = Dish(name=name, predicted=predicted)
+        dish = Dish(name=name, predicted=req.predicted)
         db.add(dish)
     else:
-        dish.predicted = predicted
+        dish.predicted = req.predicted
 
     db.commit()
     db.refresh(dish)
@@ -120,20 +147,20 @@ async def set_prediction(name: str, predicted: int, db: Session = Depends(get_db
         "predicted": dish.predicted
     }
 
-
+# ---------------------------
 # Done API
-@app.post("/done")
-async def mark_done(name: str, quantity: int = 1, db: Session = Depends(get_db)):
-    name = name.strip().lower()
+# ---------------------------
 
-    if quantity <= 0:
-        return {"error": "Invalid quantity"}
+@app.post("/done")
+async def mark_done(req: DoneRequest, db: Session = Depends(get_db)):
+    name = req.name.strip().lower()
+    quantity = req.quantity
+
     dish = db.query(Dish).filter(Dish.name == name).first()
 
     if not dish:
-        return {"error": "Dish not found"}
+        raise HTTPException(status_code=404, detail="Dish not found")
 
-    # Move from pending to completed (handle overflow)
     done_qty = min(quantity, dish.pending)
     dish.pending -= done_qty
     dish.completed += done_qty
@@ -150,8 +177,10 @@ async def mark_done(name: str, quantity: int = 1, db: Session = Depends(get_db))
         "completed": dish.completed
     }
 
+# ---------------------------
+# WebSocket Endpoint
+# ---------------------------
 
-# WebSocket
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -161,8 +190,10 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-
+# ---------------------------
 # Report Download
+# ---------------------------
+
 @app.get("/report")
 async def download_report(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     dishes = db.query(Dish).all()
@@ -176,13 +207,22 @@ async def download_report(background_tasks: BackgroundTasks, db: Session = Depen
         for dish in dishes:
             writer.writerow([dish.name, dish.completed, dish.predicted])
 
-    # auto delete after response
     background_tasks.add_task(os.remove, temp.name)
 
-    return FileResponse(temp.name, media_type='text/csv', filename="report.csv")
+    return FileResponse(
+        temp.name,
+        media_type="text/csv",
+        filename="report.csv"
+    )
+
+# ---------------------------
+# Suggest API
+# ---------------------------
 
 @app.get("/suggest")
 def suggest_dishes(q: str = "", db: Session = Depends(get_db)):
     q = q.strip().lower()
+
     dishes = db.query(Dish).filter(Dish.name.ilike(f"%{q}%")).limit(5).all()
+
     return [dish.name for dish in dishes]
