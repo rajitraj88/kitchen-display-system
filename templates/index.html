@@ -83,9 +83,7 @@
 
 <!-- PREDICTION -->
 <div>
-    <!-- 🔥 FIX -->
     <input id="predName" list="dishList" placeholder="Dish">
-
     <input id="predValue" type="number" placeholder="Predicted">
     <button onclick="setPrediction()">Set Prediction</button>
 </div>
@@ -114,7 +112,7 @@ const protocol = location.protocol === "https:" ? "wss:" : "ws:";
 const socket = new WebSocket(`${protocol}//${location.host}/ws`);
 socket.onmessage = () => fetchData();
 
-// 🔥 AUTOCOMPLETE (BOTH INPUTS)
+// Autocomplete
 const dishInput = document.getElementById("dishName");
 const predInput = document.getElementById("predName");
 const dataList = document.getElementById("dishList");
@@ -146,7 +144,7 @@ function handleSuggest(e) {
     }, 200);
 }
 
-// बाकी code same
+// Utils
 function safeId(name) {
     return name.replace(/\s+/g, "-").toLowerCase();
 }
@@ -202,7 +200,10 @@ async function fetchData() {
             <td>
                 ${
                     d.pending > 0
-                    ? `<button onclick="markDone('${d.name}')">DONE</button>`
+                    ? `
+                        <input type="number" min="1" max="${d.pending}" value="1" id="qty-${id}" style="width:60px;">
+                        <button onclick="markDone('${d.name}')">DONE</button>
+                    `
                     : `<button disabled>DONE</button>`
                 }
             </td>
@@ -230,10 +231,21 @@ async function addOrder() {
 }
 
 async function markDone(name) {
+    let id = safeId(name);
+    let input = document.getElementById(`qty-${id}`);
+
+    let qty = parseInt(input.value);
+    let pending = parseInt(input.max);
+
+    if (qty > pending) {
+        alert(`Only ${pending} items pending`);
+        return;
+    }
+
     await fetch("/done", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({name, quantity: 1})
+        body: JSON.stringify({name, quantity: qty})
     });
 }
 
