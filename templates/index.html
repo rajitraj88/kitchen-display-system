@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kitchen Display</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #111;
+            color: white;
+            text-align: center;
+        }
+
+        input {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        table {
+            margin: auto;
+            border-collapse: collapse;
+            width: 60%;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #444;
+        }
+
+        th {
+            background: #222;
+        }
+
+        button {
+            padding: 8px 12px;
+            background: green;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: darkgreen;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>Kitchen Display</h2>
+
+<!-- STATS BAR -->
+<div id="stats" style="margin:15px; font-size:18px; font-weight:bold; padding:10px; background:#1b5e20; border-radius:5px;"></div>
+
+<!-- ORDER -->
+<div style="margin:20px;">
+    <input id="dishName" list="dishList" placeholder="Dish name" onkeypress="handleEnter(event)" />
+    <datalist id="dishList"></datalist>
+    <input id="dishQty" type="number" placeholder="Quantity" onkeypress="handleEnter(event)" />
+    <button onclick="addOrder()">Add Order</button>
+</div>
+
+<!-- REPORT -->
+<div style="margin:20px;">
+    <button onclick="downloadReport()">Download Report</button>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Produced</th>
+            <th>Predicted</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+</table>
+
+<script>
+let alertPlayed = false;
+
+// WebSocket - Dynamic URL (works on production)
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+socket.onmessage = () => fetchData();
+
+// alert
+function playAlert() {
+    new Audio("https://www.soundjay.com/buttons/beep-07.wav").play();
+}
+
+function handleEnter(e) {
+    if (e.key === "Enter") addOrder();
+}
+
+async function fetchData() {
+    let res = await fetch("/dishes");
+    let data = await res.json();
+
+    // SORT by pending (descending)
+    data.sort((a, b) => b.pending - a.pending);
+
+    let table = document.getElementById("table-body");
+    table.innerHTML = "";
+
+    let overloadFound = false;
+
+    data.forEach(dish => {
+
+        let color = "";
+        let statusColor = "";
+        let status = "";
+
+        if (dish.pending < dish.predicted) {
+            color = "#1b5e20";
+            statusColor = "#4caf50";
+            status = "OK";
+        } else if (dish.pending == dish.predicted) {
+            color = "#f9a825";
+            statusColor = "#ff9800";
+            status = "LIMIT";
+        } else {
+            color = "#b71c1c";
+            statusColor = "#f44336";
+            status = "OVERLOAD";
+            overloadFound = true;
+        }
+
+        let row = `
+        <tr style="background:${color}">
+            <td>${dish.name}</td>
+            <td>${dish.completed}</td>
+            <td>${dish.predicted}</td>
+            <td style="font-weight:bold; color:${statusColor}">${status}</td>
+            <td>
+                ${dish.pending > 0 
+                    ? `<button onclick="markDone('${dish.name}', ${dish.pending})">DONE (${dish.pending})</button>` 
+                    : `All Done`}
+            </td>
+        </tr>`;
+
+        table.innerHTML += row;
+    });
+
+    // Update stats bar
+    let totalPending = 0;
+    let totalCompleted = 0;
+
+    data.forEach(dish => {
+        totalPending += dish.pending;
+        totalCompleted += dish.completed;
+    });
+
+    document.getElementById("stats").innerHTML =
+        `Pending: ${totalPending} | Completed: ${totalCompleted}`;
+
+    if (overloadFound && !alertPlayed) {
+        playAlert();
+        alertPlayed = true;
+    }
+
+    if (!overloadFound) {
+        alertPlayed = false;
+    }
+}
+
+async function markDone(name, qty) {
+    await fetch(`/done?name=${name}&quantity=${qty}`, { method: "POST" });
+}
+
+async function addOrder() {
+    let name = document.getElementById("dishName").value.trim();
+    let qty = parseInt(document.getElementById("dishQty").value);
+
+    if (!name || !qty || qty <= 0) {
+        alert("Valid input required");
+        return;
+    }
+
+    await fetch(`/order?name=${name}&quantity=${qty}`, { method: "POST" });
+
+    document.getElementById("dishName").value = "";
+    document.getElementById("dishQty").value = "";
+}
+
+function downloadReport() {
+    window.open("/report", "_blank");
+}
+
+const input = document.getElementById("dishName");
+const datalist = document.getElementById("dishList");
+
+input.addEventListener("input", async () => {
+    let query = input.value;
+
+    if (!query) return;
+
+    let res = await fetch(`/suggest?q=${query}`);
+    let data = await res.json();
+
+    datalist.innerHTML = "";
+
+    data.forEach(name => {
+        let option = document.createElement("option");
+        option.value = name;
+        datalist.appendChild(option);
+    });
+});
+
+fetchData();
+</script>
+
+</body>
+</html>
