@@ -4,42 +4,56 @@ A real-time Kitchen Display System built using **FastAPI, WebSockets, and SQLite
 
 This system enables kitchen staff to track incoming orders, production progress, and predicted demand — all in real-time across multiple screens.
 
+Supports real-time multi-screen synchronization for kitchen operations.
+
 ---
 
 ## 🚀 Live Demo
 
-🔗 **Live Application:** <your-deployed-link>
-📂 **GitHub Repository:** <your-repo-link>
+🔗 **Live Application:** https://kitchen-display-system2.onrender.com  
+📂 **GitHub Repository:** https://github.com/rajitraj88/kitchen-display-system  
+
+---
+
+## 🧪 How to Test (Quick Demo)
+
+1. Open the application in 2 browser tabs  
+2. Add an order (e.g., Pizza - 5)  
+3. Click **DONE** in one tab  
+4. Observe real-time updates in both tabs  
+
+This demonstrates real-time synchronization using WebSockets.
 
 ---
 
 ## 🚀 Features
 
-* 📦 Place orders with quantity
-* ✅ Mark items as DONE (supports partial completion)
-* 📊 Track **Created-till-now (Produced)** vs **Predicted demand**
-* 🔄 Real-time sync across multiple screens using **WebSockets**
-* ⚠️ Smart status detection:
+* 📦 Place orders with quantity  
+* ✅ Mark items as DONE (supports partial completion)  
+* 📊 Track **Created-till-now (Produced)** vs **Predicted demand**  
+* 🔄 Real-time sync across multiple screens using **WebSockets**  
+* ⚠️ Smart status detection:  
 
-  * ⚪ NO DATA (no prediction)
-  * 🟢 OK (under capacity)
-  * 🟡 LIMIT (at capacity)
-  * 🔴 OVERLOAD (exceeds capacity)
-* 📥 Download production report (CSV)
-* 🔍 Dish name autocomplete (typeahead suggestions)
-* 🔢 DONE with quantity validation (prevents over-processing)
-* 🚫 DONE button auto-disabled when no pending items
-* ✨ Auto-formatting of dish names
-* 🖥️ Optimized UI for large kitchen displays
+  * ⚪ NO DATA (no prediction)  
+  * 🟢 OK (under capacity)  
+  * 🟡 LIMIT (at capacity)  
+  * 🔴 OVERLOAD (exceeds capacity)  
+
+* 📥 Download production report (CSV)  
+* 🔍 Dish name autocomplete (typeahead suggestions)  
+* 🔢 DONE with quantity validation (prevents over-processing)  
+* 🚫 DONE button auto-disabled when no pending items  
+* ✨ Auto-formatting of dish names  
+* 🖥️ Optimized UI for large kitchen displays  
 
 ---
 
 ## 🖥️ Kitchen Display Behavior
 
-* Open the UI in multiple tabs/screens
-* When any user clicks **DONE**, all screens update instantly
-* Ensures **real-time synchronization across kitchen displays**
-* Helps staff prioritize workload dynamically
+* Open the UI in multiple tabs/screens  
+* When any user clicks **DONE**, all screens update instantly  
+* Ensures **real-time synchronization across kitchen displays**  
+* Helps staff prioritize workload dynamically  
 
 ---
 
@@ -47,21 +61,21 @@ This system enables kitchen staff to track incoming orders, production progress,
 
 ### 🔹 Real-Time Architecture
 
-* Implemented using **WebSockets**
-* Broadcast-based update system
-* Eliminates polling → reduces latency
+* Implemented using **WebSockets**  
+* Broadcast-based update system  
+* Eliminates polling → reduces latency  
 
 ### 🔹 Backend
 
-* Built with **FastAPI**
-* REST + WebSocket hybrid architecture
-* Uses dependency injection (`get_db`)
+* Built with **FastAPI**  
+* REST + WebSocket hybrid architecture  
+* Uses dependency injection (`get_db`)  
 
 ### 🔹 Database
 
-* Default: **SQLite (local development)**
-* Production-ready: **PostgreSQL**
-* Connection pooling supported
+* Default: **SQLite (local development)**  
+* Production-ready: **PostgreSQL (used to ensure data persistence across restarts in cloud environments like Render)**  
+* Connection pooling supported  
 
 ---
 
@@ -69,7 +83,7 @@ This system enables kitchen staff to track incoming orders, production progress,
 
 ### Created-till-now Calculation
 
-> Created-till-now = sum of quantities marked as DONE
+> Created-till-now = sum of quantities marked as DONE  
 
 ### Status Logic
 
@@ -139,25 +153,25 @@ POST /prediction
 
 ### ➤ Get All Dishes
 
-GET /dishes
+GET /dishes  
 
 ---
 
 ### ➤ Download Report
 
-GET /report
+GET /report  
 
 ---
 
 ### ➤ Autocomplete
 
-GET /suggest?q=piz
+GET /suggest?q=piz  
 
 ---
 
 ### ➤ WebSocket
 
-/ws
+/ws  
 
 ---
 
@@ -166,8 +180,8 @@ GET /suggest?q=piz
 ### 1. Clone Repository
 
 ```bash
-git clone <your-repo-url>
-cd kitchen-display
+git clone https://github.com/rajitraj88/kitchen-display-system
+cd kitchen-display-system
 ```
 
 ### 2. Install Dependencies
@@ -194,68 +208,72 @@ http://127.0.0.1:8000/
 
 Supported platforms:
 
-* Render (recommended)
-* AWS EC2
-* DigitalOcean
-* Heroku
+* Render (recommended)  
+* AWS EC2  
+* DigitalOcean  
+* Heroku  
 
 ### 🔧 Environment Variable
 
+Set the database URL for production (PostgreSQL):
+
 ```bash
-DATABASE_URL=<your-database-url>
+DATABASE_URL=postgresql://username:password@host:port/dbname
 ```
 
 Example:
 
-```
+```bash
 postgresql://user:password@host:port/dbname
 ```
+
+This is required to ensure persistent data storage in cloud environments like Render.
 
 ---
 
 ## 📈 Scalability Considerations
 
-* Replace SQLite with PostgreSQL
-* Use **Redis Pub/Sub** for multi-instance WebSocket sync
-* Add load balancer with sticky sessions
-* Introduce caching layer (Redis)
-* Containerize using Docker
+* Replace SQLite with PostgreSQL  
+* Use **Redis Pub/Sub** for multi-instance WebSocket sync  
+* Add load balancer with sticky sessions  
+* Introduce caching layer (Redis)  
+* Containerize using Docker  
 
 ---
 
 ## ⚠️ Limitations
 
-* SQLite not suitable for high concurrency
-* No authentication layer
-* WebSocket manager is in-memory (single-instance)
-* UI is basic (can be upgraded using React)
+* SQLite not suitable for high concurrency  
+* No authentication layer  
+* WebSocket manager is in-memory (single-instance)  
+* UI is intentionally minimal and optimized for kitchen display environments  
 
 ---
 
 ## 🔮 Future Improvements
 
-* Authentication & role-based access
-* Order history tracking
-* Analytics dashboard
-* Mobile/tablet optimization
-* Microservices architecture
+* Authentication & role-based access  
+* Order history tracking  
+* Analytics dashboard  
+* Mobile/tablet optimization  
+* Microservices architecture  
 
 ---
 
 ## 👨‍💻 Author
 
-**Hritviz Soni**
-QA Automation Engineer (SDET)
-Skilled in Python, FastAPI, Automation, and System Design
+**Hritviz Soni**  
+QA Automation Engineer (SDET)  
+Skilled in Python, FastAPI, Automation, and System Design  
 
 ---
 
 ## 📌 Notes
 
-* Developed as part of a backend/system design assignment
-* Focused on **real-time updates and scalability**
-* Implements **multi-screen synchronization using WebSockets**
-* Includes enhancements beyond assignment requirements
+* Developed as part of a backend/system design assignment  
+* Focused on **real-time updates and scalability**  
+* Implements **multi-screen synchronization using WebSockets**  
+* Includes enhancements beyond assignment requirements  
 
 ---
 
