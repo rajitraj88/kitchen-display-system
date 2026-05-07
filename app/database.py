@@ -3,40 +3,33 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 # ---------------------------
-# Database URL
+# Database URL (MANDATORY)
 # ---------------------------
-# Priority:
-# 1. Environment variable (for production)
-# 2. Local SQLite fallback
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite:///./kitchen.db"
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise Exception("❌ DATABASE_URL not set. Render env variable check kar.")
+
+# 🔥 FIX: Render sometimes gives 'postgres://' instead of correct driver
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace(
+        "postgres://",
+        "postgresql+psycopg2://"
+    )
 
 # ---------------------------
 # Engine Configuration
 # ---------------------------
 
-# SQLite needs special handling
-is_sqlite = DATABASE_URL.startswith("sqlite")
-
-if is_sqlite:
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},  # required for SQLite + FastAPI
-        echo=False
-    )
-else:
-    # Production DB (PostgreSQL / MySQL etc.)
-    engine = create_engine(
-        DATABASE_URL,
-        pool_size=5,
-        max_overflow=10,
-        pool_pre_ping=True,   # avoids stale connections
-        future=True,
-        echo=False
-    )
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,   # avoids stale connections
+    future=True,
+    echo=False
+)
 
 # ---------------------------
 # Session Factory
@@ -59,10 +52,6 @@ Base = declarative_base()
 # ---------------------------
 
 def get_db():
-    """
-    Provides a DB session per request
-    Ensures proper cleanup after request completes
-    """
     db = SessionLocal()
     try:
         yield db
