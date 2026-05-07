@@ -9,9 +9,9 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise Exception("❌ DATABASE_URL not set. Render env variable check kar.")
+    raise Exception("DATABASE_URL not set. Render env variable check kar.")
 
-# 🔥 FIX: Render sometimes gives 'postgres://' instead of correct driver
+# FIX: Render sometimes gives 'postgres://' instead of correct driver
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace(
         "postgres://",
