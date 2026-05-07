@@ -30,7 +30,7 @@ class Dish(Base):
     predicted = Column(Integer, default=0, nullable=False)
 
     # ---------------------------
-    # Constraints (IMPORTANT)
+    # Constraints 
     # ---------------------------
     __table_args__ = (
         # Prevent negative values (data integrity)
@@ -43,7 +43,7 @@ class Dish(Base):
     )
 
     # ---------------------------
-    # Helper Methods (Optional but smart)
+    # Helper Methods
     # ---------------------------
 
     def total(self):
