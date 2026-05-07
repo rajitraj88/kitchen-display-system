@@ -69,7 +69,7 @@ manager = ConnectionManager()
 
 
 # ---------------------------
-# UI Route (NO JINJA)
+# UI Route
 # ---------------------------
 
 @app.get("/")
@@ -120,12 +120,12 @@ def get_dishes(db: Session = Depends(get_db)):
 
 
 # ---------------------------
-# Prediction API (FIXED CASE ISSUE)
+# Prediction API 
 # ---------------------------
 
 @app.post("/prediction")
 async def set_prediction(req: PredictionRequest, db: Session = Depends(get_db)):
-    name = req.name.strip().title()   # 🔥 FIX (was lower)
+    name = req.name.strip().title()   
 
     dish = db.query(Dish).filter(Dish.name == name).first()
 
@@ -142,12 +142,12 @@ async def set_prediction(req: PredictionRequest, db: Session = Depends(get_db)):
 
 
 # ---------------------------
-# Done API (FIXED CASE ISSUE)
+# Done API 
 # ---------------------------
 
 @app.post("/done")
 async def mark_done(req: DoneRequest, db: Session = Depends(get_db)):
-    name = req.name.strip().title()   # 🔥 FIX (was lower)
+    name = req.name.strip().title()   
     qty = req.quantity
 
     dish = db.query(Dish).filter(Dish.name == name).first()
